@@ -1,6 +1,9 @@
 import React from 'react';
 import axios from 'axios';
 
+import styles from './App.module.css';
+import { ReactComponent as Check } from './check.svg';
+
 const API_ENDPOINT = 'https://hn.algolia.com/api/v1/search?query=';
 
 const useSemiPersistentState = (key, initialState) => {
@@ -94,8 +97,8 @@ const App = () => {
   }
 
   return (
-    <div>
-      <h1>My Hacker Stories</h1>
+    <div className={styles.container}>
+      <h1 className={styles.headlinePrimary}>My Hacker Stories</h1>
 
       <SearchForm searchTerm={searchTerm}
                   onSearchInput={handleSearchInput}
@@ -115,7 +118,7 @@ const App = () => {
 const SearchForm = ({ searchTerm,
                       onSearchInput,
                       onSearchSubmit, }) => (
-  <form onSubmit={onSearchSubmit}>
+  <form onSubmit={onSearchSubmit} className='search-form'>
     <InputWithLabel id='search'
                     value={searchTerm} 
                     isFocused
@@ -123,7 +126,9 @@ const SearchForm = ({ searchTerm,
       <strong>Search</strong>
     </InputWithLabel>
 
-    <button type='button' disabled={!searchTerm} onClick={onSearchSubmit}>
+    <button type='submit' 
+            disabled={!searchTerm} 
+            className='button button_large'>
       Submit
     </button>
   </form>
@@ -146,13 +151,14 @@ const InputWithLabel = ({ id,
 
   return (
     <>
-      <label htmlFor={id}>{children}</label>
+      <label htmlFor={id} className={styles.label}>{children}</label>
       &nbsp;
       <input ref={inputRef}
              id={id} 
              type={type} 
              value={value} 
-             onChange={onInputChange} />
+             onChange={onInputChange}
+             className={styles.input} />
     </>
   );
 };
@@ -163,14 +169,16 @@ const List = ({ list, onRemoveItem }) =>
                          onRemoveItem={onRemoveItem} />);
 
 const Item = ({ item, onRemoveItem }) => (
-  <div>
-    <span><a href={item.url}>{item.title}</a></span>
-    <span>{item.author}</span>
-    <span>{item.num_comments}</span>
-    <span>{item.points}</span>
-    <span>
-      <button type="button" onClick={() => onRemoveItem(item)}>
-        Dismiss
+  <div className={styles.item}>
+    <span style={{ width: '40%' }}><a href={item.url}>{item.title}</a></span>
+    <span style={{ width: '30%' }}>{item.author}</span>
+    <span style={{ width: '10%' }}>{item.num_comments}</span>
+    <span style={{ width: '10%' }}>{item.points}</span>
+    <span style={{ width: '10%' }}>
+      <button type='button'
+              onClick={() => onRemoveItem(item)}
+              className={`${styles.button} ${styles.buttonSmall}`}>
+        <Check height='18px' width='18px' />
       </button>
     </span>
   </div>
