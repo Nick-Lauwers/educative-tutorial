@@ -52,13 +52,17 @@ const storiesReducer = (state, action) => {
   }
 };
 
+const extractSearchTerm = url => url.replace(API_ENDPOINT, '');
+
+const getLastSearches = urls => urls.slice(-5).map(extractSearchTerm);
+
+const getUrl = searchTerm => `${API_ENDPOINT}${searchTerm}`;
+
 const App = () => {
 
   const [searchTerm, setSearchTerm] = useSemiPersistentState('search', 'React');
   
-  const [url, setUrl] = React.useState(
-    `${API_ENDPOINT}${searchTerm}`
-  );
+  const [urls, setUrls] = React.useState([getUrl(searchTerm)]);
 
   const [stories, dispatchStories] = React.useReducer(
     storiesReducer, 
@@ -69,7 +73,8 @@ const App = () => {
     dispatchStories({ type: 'STORIES_FETCH_INIT' });
 
     try {
-      const result = await axios.get(url);
+      const lastUrl = urls[urls.length - 1];
+      const result = await axios.get(lastUrl);
 
       dispatchStories({
         type: 'STORIES_FETCH_SUCCESS',
@@ -78,7 +83,7 @@ const App = () => {
     } catch {
       dispatchStories({ type: 'STORIES_FETCH_FAILURE' });
     }
-  }, [url]);
+  }, [urls]);
 
   React.useEffect(() => {
     handleFetchStories();
@@ -93,9 +98,20 @@ const App = () => {
   };
 
   const handleSearchSubmit = event => {
-    setUrl(`${API_ENDPOINT}${searchTerm}`);
+    handleSearch(searchTerm);
     event.preventDefault();
-  }
+  };
+
+  const handleLastSearch = url => {
+    handleSearch(searchTerm);
+  };
+
+  const handleSearch = searchTerm => {
+    const url = getUrl(searchTerm);
+    setUrls(urls.concat(url));
+  };
+
+  const lastSearches = getLastSearches(urls);
 
   return (
     <div className={styles.container}>
@@ -104,6 +120,14 @@ const App = () => {
       <SearchForm searchTerm={searchTerm}
                   onSearchInput={handleSearchInput}
                   onSearchSubmit={handleSearchSubmit} />
+
+      {lastSearches.map((searchTerm, index) => (
+        <button key={searchTerm + index} 
+                type='button' 
+                onClick={() => handleLastSearch(searchTerm)}>
+          {searchTerm}
+        </button>
+      ))}
 
       <hr />
 
@@ -174,14 +198,17 @@ const SORTS = {
 
 const List = ({ list, onRemoveItem }) => {
 
-  const [sort, setSort] = React.useState('NONE');
+  const [sort, setSort] = React.useState({ sortKey: 'NONE', isReverse: false });
 
   const handleSort = sortKey => {
-    setSort(sortKey);
+    const isReverse = sort.sortKey === sortKey && !sort.isReverse;
+    setSort({ sortKey: sortKey, isReverse: isReverse });
   };
 
-  const sortFunction = SORTS[sort];
-  const sortedList = sortFunction(list);
+  const sortFunction = SORTS[sort.sortKey];
+
+  const sortedList = sort.isReverse ? sortFunction(list).reverse() : 
+                                      sortFunction(list);
 
   return (
     <div>
