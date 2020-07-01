@@ -1,15 +1,13 @@
 import React from 'react';
 import axios from 'axios';
+import { sortBy } from 'lodash';
 
 import styles from './App.module.css';
 import { ReactComponent as Check } from './check.svg';
 
 const API_ENDPOINT = 'https://hn.algolia.com/api/v1/search?query=';
 
-const useSemiPersistentState = (
-  key: string, 
-  initialState: string
-): [string, (newValue: string) => void] => {
+const useSemiPersistentState = (key, initialState) => {
   const [value, setValue] = React.useState(
     localStorage.getItem(key) || initialState
   );
@@ -21,48 +19,7 @@ const useSemiPersistentState = (
   return [value, setValue];
 };
 
-type Story = {
-  objectID: string;
-  url: string;
-  title: string;
-  author: string;
-  num_comments: number;
-  points: number;
-};
-
-type Stories = Array<Story>;
-
-type StoriesState = {
-  data: Stories;
-  isLoading: boolean;
-  isError: boolean;
-};
-
-interface StoriesFetchInitAction {
-  type: 'STORIES_FETCH_INIT';
-};
-
-interface StoriesFetchSuccessAction {
-  type: 'STORIES_FETCH_SUCCESS';
-  payload: Stories;
-};
-
-interface StoriesFetchFailureAction {
-  type: 'STORIES_FETCH_FAILURE';
-};
-
-interface StoriesRemoveAction {
-  type: 'REMOVE_STORY';
-  payload: Story;
-}
-
-type StoriesAction = 
-  | StoriesFetchInitAction
-  | StoriesFetchSuccessAction
-  | StoriesFetchFailureAction
-  | StoriesRemoveAction;
-
-const storiesReducer = (state: StoriesState, action: StoriesAction) => {
+const storiesReducer = (state, action) => {
   switch (action.type) {
     case 'STORIES_FETCH_INIT':
       return {
@@ -93,7 +50,8 @@ const storiesReducer = (state: StoriesState, action: StoriesAction) => {
     default:
       throw new Error();
   }
-}
+};
+
 const App = () => {
 
   const [searchTerm, setSearchTerm] = useSemiPersistentState('search', 'React');
@@ -126,15 +84,15 @@ const App = () => {
     handleFetchStories();
   }, [handleFetchStories]);
 
-  const handleRemoveStory = (item: Story) => {
+  const handleRemoveStory = item => {
     dispatchStories({ type: 'REMOVE_STORY', payload: item });
   };
 
-  const handleSearchInput = ( event: React.ChangeEvent<HTMLInputElement> ) => {
+  const handleSearchInput = event => {
     setSearchTerm(event.target.value);
   };
 
-  const handleSearchSubmit = ( event: React.FormEvent<HTMLFormElement> ) => {
+  const handleSearchSubmit = event => {
     setUrl(`${API_ENDPOINT}${searchTerm}`);
     event.preventDefault();
   }
@@ -158,15 +116,9 @@ const App = () => {
   );
 };
 
-type SearchFormProps = {
-  searchTerm: string;
-  onSearchInput: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  onSearchSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
-}
-
 const SearchForm = ({ searchTerm,
                       onSearchInput,
-                      onSearchSubmit, }: SearchFormProps) => (
+                      onSearchSubmit }) => (
   <form onSubmit={onSearchSubmit} className='search-form'>
     <InputWithLabel id='search'
                     value={searchTerm} 
@@ -183,23 +135,14 @@ const SearchForm = ({ searchTerm,
   </form>
 );
 
-type InputWithLabelProps = {
-  id: string;
-  value: string;
-  type?: string;
-  onInputChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  isFocused?: boolean;
-  children: React.ReactNode;
-}
-
 const InputWithLabel = ({ id, 
                           value, 
                           type='text', 
                           onInputChange, 
                           isFocused,
-                          children }: InputWithLabelProps) => {
+                          children }) => {
 
-  const inputRef = React.useRef<HTMLInputElement>(null!);
+  const inputRef = React.useRef();
 
   React.useEffect(() => {
     if (isFocused && inputRef.current) {
@@ -221,25 +164,63 @@ const InputWithLabel = ({ id,
   );
 };
 
-type ListProps = {
-  list: Stories;
-  onRemoveItem: (item: Story) => void;
-}
+const SORTS = {
+  NONE: list => list,
+  TITLE: list => sortBy(list, 'title'),
+  AUTHOR: list => sortBy(list, 'author'),
+  COMMENT: list => sortBy(list, 'num_comments').reverse(),
+  POINT: list => sortBy(list, 'points').reverse(),
+};
 
-const List = ({ list, onRemoveItem }: ListProps) => (
-  <>
-    {list.map(item => <Item key={item.objectID} 
-                            item={item}
-                            onRemoveItem={onRemoveItem} />)}
-  </>
- );
+const List = ({ list, onRemoveItem }) => {
 
-type ItemProps = {
-  item: Story;
-  onRemoveItem: (item: Story) => void;
-}
+  const [sort, setSort] = React.useState('NONE');
 
-const Item = ({ item, onRemoveItem }: ItemProps) => (
+  const handleSort = sortKey => {
+    setSort(sortKey);
+  };
+
+  const sortFunction = SORTS[sort];
+  const sortedList = sortFunction(list);
+
+  return (
+    <div>
+      <div style={{ display: 'flex' }}>
+        <span style={{ width: '40%' }}>
+          <button type="button" onClick={() => handleSort('TITLE')}>
+            Title
+          </button>
+        </span>
+
+        <span style={{ width: '30%' }}>
+          <button type="button" onClick={() => handleSort('AUTHOR')}>
+            Author
+          </button>
+        </span>
+
+        <span style={{ width: '10%' }}>
+          <button type="button" onClick={() => handleSort('COMMENT')}>
+            Comments
+          </button>
+        </span>
+
+        <span style={{ width: '10%' }}>
+          <button type="button" onClick={() => handleSort('POINT')}>
+            Points
+          </button>
+        </span>
+
+        <span style={{ width: '10%' }}>Actions</span>
+      </div>
+
+      {sortedList.map(item => <Item key={item.objectID} 
+                                    item={item}
+                                    onRemoveItem={onRemoveItem} />)}
+    </div>
+  );
+};
+
+const Item = ({ item, onRemoveItem }) => (
   <div className={styles.item}>
     <span style={{ width: '40%' }}><a href={item.url}>{item.title}</a></span>
     <span style={{ width: '30%' }}>{item.author}</span>
@@ -256,5 +237,3 @@ const Item = ({ item, onRemoveItem }: ItemProps) => (
 );
 
 export default App;
-
-export { SearchForm, InputWithLabel, List, Item };
